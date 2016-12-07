@@ -73,7 +73,8 @@ module EcsDeploy
 
     def self.wait_all_running(services)
       services.group_by { |s| [s.cluster, s.region] }.each do |(cl, region), ss|
-        client = Aws::ECS::Client.new(region: region)
+        options = {}.tap { |opts| opts[:region] = region if region }
+        client = Aws::ECS::Client.new(options)
         service_names = ss.map(&:service_name)
         client.wait_until(:services_stable, cluster: cl, services: service_names) do |w|
           w.before_attempt do
