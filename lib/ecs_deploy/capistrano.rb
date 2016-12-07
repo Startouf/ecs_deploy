@@ -47,18 +47,27 @@ namespace :ecs do
       regions = [nil] if regions.empty?
       regions.each do |r|
         services = fetch(:ecs_services).map do |service|
+          # If we specified custom cluster(s) in ENV
+          # skip if the service doesn't match the cluster
           if fetch(:target_cluster) && fetch(:target_cluster).size > 0
             next unless fetch(:target_cluster).include?(service[:cluster])
           end
+          # If we specified custom task definition(s) in ENV
+          # skip until we match the task definitions
           if fetch(:target_task_definition) && fetch(:target_task_definition).size > 0
             next unless fetch(:target_task_definition).include?(service[:task_definition_name])
           end
+
+          # Now, we need to retrieve the last registered task name (with the revision)
+          already_registered_tasks = EcsDeploy::TaskDefinition.new(
+            task_definition_name: service[:task_definition_name],
+          ).recent_task_definition_arns
 
           service_options = {
             region: r,
             cluster: service[:cluster] || fetch(:ecs_default_cluster),
             service_name: service[:name],
-            task_definition_name: service[:task_definition_name],
+            task_definition_name: last_registered_task_arn,
             load_balancers: service[:load_balancers],
             desired_count: service[:desired_count],
           }
